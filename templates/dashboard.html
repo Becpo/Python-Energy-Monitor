@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnergyPLAY — Monitor Energético</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  TOPBAR                                  ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<nav class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0a0e17" stroke-width="2.5" stroke-linecap="round">
+        <polyline points="13 2 13 9 20 9"/><path d="M3 15a9 9 0 1 0 9-9"/>
+        <polyline points="9 18 3 18 3 12"/>
+      </svg>
+    </div>
+    <span class="logo-text">Energy<span>PLAY</span></span>
+  </div>
+  <div class="topbar-right">
+    <div class="status-pill">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">CONECTANDO...</span>
+    </div>
+    <div class="topbar-time" id="topbar-clock">--:--:--</div>
+  </div>
+</nav>
+
+<!-- ╔══════════════════════════════════════════╗ -->
+<!-- ║  LAYOUT PRINCIPAL                        ║ -->
+<!-- ╚══════════════════════════════════════════╝ -->
+<main class="layout">
+
+  <!-- Encabezado de página -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">// PANEL DE CONTROL</div>
+      <div class="page-subtitle">Monitor <strong>Energético</strong> en Tiempo Real</div>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" onclick="cargarTodo()">↺ ACTUALIZAR</button>
+      <button class="btn btn-accent" id="btn-generar" onclick="generarReporte()">⚡ NUEVO CICLO</button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        ENERGÍA TOTAL
+      </div>
+      <div class="kpi-value" id="kpi-kwh">—</div>
+      <div class="kpi-sub">kWh consumidos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        COSTO TOTAL
+      </div>
+      <div class="kpi-value" id="kpi-costo">—</div>
+      <div class="kpi-sub">pesos colombianos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        PROYECCIÓN MES
+      </div>
+      <div class="kpi-value" id="kpi-proyeccion">—</div>
+      <div class="kpi-sub">estimado mensual</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        SOBRECARGAS
+      </div>
+      <div class="kpi-value" id="kpi-sobrecargas">—</div>
+      <div class="kpi-sub">eventos detectados</div>
+    </div>
+  </div>
+
+  <!-- Fila gráficas + tiempo real -->
+  <div class="main-grid">
+
+    <!-- Gráficas -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+
+      <!-- Gráfica 1: Perfil de carga horaria -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <div class="panel-title-dot"></div>
+            CURVA DE CARGA — PROMEDIO POR HORA
+          </div>
+          <select id="sel-dias-perfil" onchange="cargarPerfilHorario()"
+            style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);
+                   font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:4px;">
+            <option value="7">7 días</option>
+            <option value="14">14 días</option>
+            <option value="30">30 días</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap"><canvas id="chart-perfil"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Gráfica 2: Consumo diario -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <div class="panel-title-dot" style="background:var(--accent2)"></div>
+            CONSUMO DIARIO POR DISPOSITIVO (kWh)
+          </div>
+          <select id="sel-dias-diario" onchange="cargarConsumoDiario()"
+            style="background:var(--bg3);border:1px solid var(--border2);color:var(--muted);
+                   font-family:var(--mono);font-size:10px;padding:4px 8px;border-radius:4px;">
+            <option value="7">7 días</option>
+            <option value="14" selected>14 días</option>
+            <option value="30">30 días</option>
+          </select>
+        </div>
+        <div class="panel-body">
+          <div class="chart-wrap"><canvas id="chart-diario"></canvas></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Panel tiempo real -->
+    <div class="panel" style="display:flex; flex-direction:column;">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot" style="background:var(--warn); animation:pulse 1s infinite;"></div>
+          CONSUMO INSTANTÁNEO
+        </div>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--muted);">LIVE · 5s</span>
+      </div>
+      <div class="device-list" id="device-list">
+        <div class="empty-state">Cargando...</div>
+      </div>
+      <div class="realtime-total">
+        <span class="realtime-label">TOTAL INSTANTÁNEO</span>
+        <span class="realtime-value" id="rt-total">— W</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fila: Alertas + Costos por dispositivo -->
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+    <!-- Alertas activas -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot" style="background:var(--danger);"></div>
+          ALERTAS ACTIVAS
+        </div>
+        <span id="alertas-count"
+          style="font-family:var(--mono);font-size:10px;background:rgba(255,79,79,0.15);
+                 color:var(--danger);padding:3px 8px;border-radius:3px;">0</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="alert-table">
+          <thead>
+            <tr>
+              <th>DISPOSITIVO</th>
+              <th>TIPO</th>
+              <th>PICO W</th>
+              <th>DUR.</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="alertas-body">
+            <tr><td colspan="5" class="empty-state">Cargando alertas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Costos por dispositivo -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot" style="background:var(--accent2);"></div>
+          COSTOS Y RIESGO POR DISPOSITIVO
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="cost-table">
+          <thead>
+            <tr>
+              <th>DISPOSITIVO</th>
+              <th>kWh</th>
+              <th>COSTO COP</th>
+              <th>RIESGO</th>
+            </tr>
+          </thead>
+          <tbody id="costos-body">
+            <tr><td colspan="4" class="empty-state">Cargando datos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Gráfica dona: distribución de costos -->
+  <div style="display:grid; grid-template-columns:1fr 2fr; gap:16px;">
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot" style="background:var(--warn);"></div>
+          DISTRIBUCIÓN DE COSTOS
+        </div>
+      </div>
+      <div class="panel-body" style="display:flex;align-items:center;justify-content:center;">
+        <div style="position:relative;width:200px;height:200px;">
+          <canvas id="chart-dona"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot" style="background:var(--accent2);"></div>
+          COSTOS POR FRANJA HORARIA
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap"><canvas id="chart-franjas"></canvas></div>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <span>Hecho por Camilo Pedraza</span>
+</footer>
+
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
+
+<script defer src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# ============================================================
+#  GITIGNORE — Sistema de Monitoreo Energético
+#  Archivos que Git debe ignorar completamente
+# ============================================================
+
+# Credenciales — NUNCA subir a repositorios
+.env
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Datos generados automáticamente
+dataset_muestra.csv
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# VS Code
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
