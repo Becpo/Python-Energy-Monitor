@@ -1,4 +1,4 @@
-# EnergyOS — Sistema de Monitoreo Energético
+# EnergyPLAY — Sistema de Monitoreo Energético
 
 > Panel de control web para monitorear el consumo eléctrico de dispositivos del hogar en tiempo real, con detección de sobrecargas, análisis de costos y generación de reportes.
 
